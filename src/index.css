@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-arabic: 'Cairo', 'Tajawal', sans-serif;
+
+  /* WED Brand Palette: Simplified Official Palette */
+  --color-brand-blue: #93B5C6;
+  --color-brand-blue-dark: #7A9FB0;
+  --color-brand-blue-light: #B4CAD6;
+  --color-brand-gray: #C9CCD5;
+  --color-brand-gray-light: #E8EBF0;
+  --color-brand-pink: #E4D8DC;
+  --color-brand-pink-light: #F4EEF0;
+  
+  --color-brand-bg: #F7F9FA;
+  --color-brand-card: #FFFFFF;
+  --color-brand-text: #233446;
+  --color-brand-text-muted: #5C6E7E;
+  --color-brand-border: #C9CCD5;
+  --color-brand-border-light: #E4D8DC;
+}
+
+@layer base {
+  :root {
+    --bg-primary: #F7F9FA;
+    --text-primary: #233446;
+    --border-primary: #C9CCD5;
+  }
+
+  body {
+    background-color: #F7F9FA;
+    color: #233446;
+    font-family: var(--font-arabic);
+    direction: rtl;
+    text-align: right;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #233446;
+    font-weight: 700;
+  }
+}
+
+/* Custom scrollbars */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #F7F9FA;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #93B5C6;
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #7A9FB0;
+}
+
+.arabic-text {
+  font-family: var(--font-arabic);
+}
+
+/* Infinite Marquee moving slowly to the Right */
+@keyframes marquee-scroll-right {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0%, 0, 0);
+  }
+}
+
+.marquee-container-ltr {
+  direction: ltr !important;
+  text-align: left;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.marquee-content-track {
+  display: flex;
+  flex-shrink: 0;
+  width: max-content;
+  min-width: 200%;
+  animation: marquee-scroll-right 28s linear infinite;
+  will-change: transform;
+}
+
+.marquee-container-ltr:hover .marquee-content-track,
+.marquee-container-ltr:active .marquee-content-track,
+.marquee-content-track:hover,
+.marquee-content-track:active {
+  animation-play-state: paused;
+}
+
