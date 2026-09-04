@@ -49,10 +49,30 @@ export default async function handler(req: any, res: any) {
     let makeStatus = 'not_configured';
     const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
     if (makeWebhookUrl && saved?.status !== 'already_processed') {
+      const makeItems = Array.isArray(payload.items)
+        ? payload.items.map((item: any) => `${item.product_name || item.name || item.product_id || 'منتج'} × ${item.quantity || 1}`).join('، ')
+        : String(payload.products || '');
+      const makePayload = {
+        ...payload,
+        idempotency_key: idempotencyKey,
+        order_id: saved?.order_id || idempotencyKey,
+        order_date: order.order_date || new Date().toISOString(),
+        customer_name: String(customer.name || payload.customer_name || '').trim(),
+        customer_phone: customerPhone,
+        customer_email: String(customer.email || payload.customer_email || '').trim(),
+        customer_address: String(customer.address || payload.customer_address || '').trim(),
+        products: makeItems,
+        total: Number(payload.totals?.total ?? payload.total ?? 0),
+        payment_method: String(payload.payment_method || ''),
+        customer_message: String(payload.customer_message || ''),
+        notes: String(payload.notes || ''),
+        customer: { ...customer, phone: customerPhone },
+        order: { ...order, order_id: saved?.order_id || idempotencyKey }
+      };
       const makeResponse = await fetch(makeWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Order-Event': 'order.created', 'X-Idempotency-Key': idempotencyKey },
-        body: JSON.stringify({ ...payload, idempotency_key: idempotencyKey, customer: { ...customer, phone: customerPhone }, order: { ...order, order_id: saved?.order_id || idempotencyKey } })
+        body: JSON.stringify(makePayload)
       });
       makeStatus = makeResponse.ok ? 'forwarded_to_make' : `make_http_${makeResponse.status}`;
     }
