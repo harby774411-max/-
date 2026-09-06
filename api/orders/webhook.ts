@@ -14,6 +14,16 @@ function normalizePhone(value: unknown): string {
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
+    const query = req.query || {};
+    const mode = String(query['hub.mode'] || query.mode || '');
+    const verifyToken = String(query['hub.verify_token'] || query.verify_token || '');
+    const challenge = String(query['hub.challenge'] || query.challenge || '');
+    const configuredToken = String(process.env.META_WEBHOOK_VERIFY_TOKEN || '');
+    if (mode === 'subscribe' && configuredToken && verifyToken === configuredToken && challenge) {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/plain');
+      return res.end(challenge);
+    }
     return json(res, 200, { ok: true, service: 'wad-orders-webhook' });
   }
   if (req.method !== 'POST') {
