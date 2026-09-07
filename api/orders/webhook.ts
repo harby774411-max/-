@@ -12,6 +12,57 @@ function normalizePhone(value: unknown): string {
   return raw ? `+${raw}` : '';
 }
 
+async function sendWhatsAppOrderNotification(input: {
+  orderId: string;
+  customerName: string;
+  customerPhone: string;
+  products: string;
+  total: number;
+}) {
+  const accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID;
+  const recipientPhone = normalizePhone(process.env.WAD_ORDER_ALERT_PHONE);
+  const templateName = String(process.env.WAD_ORDER_ALERT_TEMPLATE || '').trim();
+  const languageCode = String(process.env.WAD_ORDER_ALERT_LANGUAGE || 'ar').trim();
+  if (!accessToken || !phoneNumberId || !recipientPhone || !templateName) {
+    return { status: 'not_configured' } as const;
+  }
+  const graphVersion = process.env.META_GRAPH_API_VERSION || 'v26.0';
+  const response = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: recipientPhone,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: languageCode },
+        components: [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: input.orderId },
+            { type: 'text', text: input.customerName },
+            { type: 'text', text: input.customerPhone },
+            { type: 'text', text: input.products },
+            { type: 'text', text: String(input.total) }
+          ]
+        }]
+      }
+    })
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[Wad WhatsApp notification]', response.status, errorText.slice(0, 500));
+    return { status: `http_${response.status}` } as const;
+  }
+  return { status: 'sent' } as const;
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     const query = req.query || {};
@@ -57,6 +108,7 @@ export default async function handler(req: any, res: any) {
     if (saveError) throw saveError;
 
     let makeStatus = 'not_configured';
+    let whatsappStatus = 'not_configured';
     const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
     if (makeWebhookUrl && saved?.status !== 'already_processed') {
       const makeItems = Array.isArray(payload.items)
@@ -87,11 +139,26 @@ export default async function handler(req: any, res: any) {
       makeStatus = makeResponse.ok ? 'forwarded_to_make' : `make_http_${makeResponse.status}`;
     }
 
+    if (saved?.status !== 'already_processed') {
+      const notificationItems = Array.isArray(payload.items)
+        ? payload.items.map((item: any) => `${item.product_name || item.name || item.product_id || 'منتج'} × ${item.quantity || 1}`).join('، ')
+        : String(payload.products || '');
+      const whatsappResult = await sendWhatsAppOrderNotification({
+        orderId: String(saved?.order_id || idempotencyKey),
+        customerName: String(customer.name || payload.customer_name || '').trim(),
+        customerPhone,
+        products: notificationItems,
+        total: Number(payload.totals?.total ?? payload.total ?? 0)
+      });
+      whatsappStatus = whatsappResult.status;
+    }
+
     return json(res, 200, {
       success: true,
       status: saved?.status === 'already_processed' ? 'already_processed' : (makeStatus === 'forwarded_to_make' ? makeStatus : 'stored_pending_automation'),
       order_id: saved?.order_id || idempotencyKey,
-      make_status: makeStatus
+      make_status: makeStatus,
+      whatsapp_status: whatsappStatus
     });
   } catch (error: any) {
     console.error('[Wad order webhook]', error?.message || error);
