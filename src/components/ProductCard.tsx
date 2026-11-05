@@ -24,7 +24,7 @@ const GOAL_NAMES: Record<string, string> = {
   whitening: 'توحيد لون البشرة',
 };
 
-export const ProductCard: React.FC<{ product: Product; showReason?: boolean }> = ({ product }) => {
+export const ProductCard: React.FC<{ product: Product; showReason?: boolean; isAvailable?: boolean }> = ({ product, isAvailable = product.stock > 0 }) => {
   const { addToCart } = useCart();
   const [showNotification, setShowNotification] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
@@ -33,6 +33,7 @@ export const ProductCard: React.FC<{ product: Product; showReason?: boolean }> =
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isAvailable) return;
     addToCart(product);
     setShowNotification(true);
   };
@@ -74,7 +75,7 @@ export const ProductCard: React.FC<{ product: Product; showReason?: boolean }> =
   const reasonText = product.recommendationReason || (product.category === 'bundles' ? 'باقة متكاملة للعناية اليومية' : 'تركيبة نقية وفعالة لتدليل بشرتك');
 
   return (
-    <div className="group bg-white rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 border border-brand-border flex flex-col justify-between text-right h-full relative">
+    <div className={`group bg-white rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 border border-brand-border flex flex-col justify-between text-right h-full relative ${!isAvailable ? 'opacity-75' : ''}`}>
       {/* Product Image */}
       <div 
         className="relative aspect-square overflow-hidden bg-[#F0F3F6] cursor-pointer"
@@ -86,8 +87,10 @@ export const ProductCard: React.FC<{ product: Product; showReason?: boolean }> =
             src={images[currentImgIndex] || images[0]}
             alt={product.nameAr}
             referrerPolicy="no-referrer"
-            className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
+            onError={(event) => { event.currentTarget.src = 'https://raw.githubusercontent.com/harby774411-max/-/main/logo.webp.webp'; }}
+            className={`w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out ${!isAvailable ? 'grayscale blur-[1px]' : ''}`}
           />
+          {!isAvailable && <div className="absolute inset-0 bg-black/35 flex items-center justify-center"><span className="bg-white/95 text-brand-text px-3 py-2 rounded-xl text-xs font-black arabic-text">نفدت الكمية</span></div>}
           
           {/* Quick-View Hover Overlay on Desktop */}
           <div className="absolute inset-0 bg-[#233446]/15 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none">
@@ -167,11 +170,12 @@ export const ProductCard: React.FC<{ product: Product; showReason?: boolean }> =
 
           <button
             onClick={handleAddToCart}
-            className="flex items-center justify-center gap-1 px-3 py-2 bg-brand-blue text-white rounded-xl hover:bg-brand-blue-dark active:scale-95 transition-all shadow-xs text-xs font-bold arabic-text cursor-pointer shrink-0"
+            disabled={!isAvailable}
+            className={`flex items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all shadow-xs text-xs font-bold arabic-text shrink-0 ${isAvailable ? 'bg-brand-blue text-white hover:bg-brand-blue-dark cursor-pointer' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
             title="أضف إلى السلة"
           >
             <ShoppingCart className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">أضف إلى السلة</span>
+            <span className="hidden sm:inline">{isAvailable ? 'أضف إلى السلة' : 'نفدت الكمية'}</span>
           </button>
         </div>
       </div>

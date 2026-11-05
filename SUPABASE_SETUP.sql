@@ -102,3 +102,25 @@ CREATE POLICY "Allow public read products" ON public.products FOR SELECT USING (
 CREATE POLICY "Allow public update products" ON public.products FOR UPDATE USING (true);
 CREATE POLICY "Allow public insert products" ON public.products FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public delete products" ON public.products FOR DELETE USING (true);
+
+
+-- 6. Product availability and affiliate coupon analytics
+CREATE TABLE IF NOT EXISTS public.product_availability (
+  product_id TEXT PRIMARY KEY,
+  is_available BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS affiliate_name TEXT;
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS usage_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS total_sales NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS total_discount NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMPTZ;
+
+ALTER TABLE public.product_availability ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public can read product availability" ON public.product_availability;
+CREATE POLICY "Public can read product availability" ON public.product_availability FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Public can insert product availability" ON public.product_availability;
+CREATE POLICY "Public can insert product availability" ON public.product_availability FOR INSERT WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Public can update product availability" ON public.product_availability;
+CREATE POLICY "Public can update product availability" ON public.product_availability FOR UPDATE USING (TRUE) WITH CHECK (TRUE);

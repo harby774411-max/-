@@ -63,14 +63,14 @@ interface SettingsContextType {
 const DEFAULT_SETTINGS: StoreSettings = {
   store_name: 'ود',
   store_slogan: 'للعناية بالبشرة',
-  whatsapp: '+967770000000',
-  whatsapp_orders: '+967770000000',
+  whatsapp: '+967781272125',
+  whatsapp_orders: '+967781272125',
   whatsapp_courier: '+967771111111',
   email: 'care@wad-beauty.com',
-  instagram: 'https://instagram.com/wad_skincare',
-  facebook: 'https://facebook.com/wad_skincare',
-  tiktok: 'https://tiktok.com/@wad_skincare',
-  snapchat: 'https://snapchat.com/add/wad_skincare',
+  instagram: 'https://www.instagram.com/wad_skin',
+  facebook: 'https://www.facebook.com/share/1FCqT2nDS4/?mibextid=wwXIfr',
+  tiktok: 'https://www.tiktok.com/@wad_skin',
+  snapchat: 'https://snapchat.com/t/mkn0yzLg',
   telegram: 'https://t.me/wad_skincare',
   custom_links: [
     { id: '1', title: 'موقع المعرض في صنعاء', url: 'https://maps.google.com' },
@@ -262,4 +262,3 @@ export const useSettings = () => {
   }
   return context;
 };
-
