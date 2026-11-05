@@ -16,8 +16,8 @@ export const AdminLogin = () => {
     setLoading(true);
     setError('');
     
-    // Support credentials: yass/7736 or PIN 8899 / admin credentials
-    if ((username === 'yass' && password === '7736') || (username === 'admin' && password === '8899') || username === '8899') {
+    // Require both fields; the search shortcut only leads here and never authenticates.
+    if ((username === 'yass' && password === '7736') || (username === 'admin' && password === '8899')) {
       localStorage.setItem('qurra_admin_auth', 'true');
       localStorage.setItem('qurra_admin_user', username || 'yass');
       localStorage.setItem('wed_admin_role', 'owner');
@@ -55,14 +55,14 @@ export const AdminLogin = () => {
 
         <form onSubmit={handleLogin} className="space-y-5 text-right">
           <div className="space-y-1.5">
-            <label className="arabic-text block text-xs font-bold text-gray-900">اسم المستخدم أو الرمز</label>
+            <label className="arabic-text block text-xs font-bold text-gray-900">اسم المستخدم</label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
               <input
                 type="text"
                 required
                 className="w-full pl-11 pr-4 py-3.5 bg-gray-50 focus:bg-white border border-gray-300 focus:border-[#722F37] rounded-2xl outline-none transition-all arabic-text text-sm font-bold text-gray-900 placeholder:text-gray-400"
-                placeholder="yass أو 8899"
+                placeholder="اسم المستخدم"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
