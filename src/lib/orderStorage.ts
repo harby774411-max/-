@@ -190,8 +190,52 @@ export async function createAndPersistOrder(payload: {
     console.error('LocalStorage order save error:', e);
   }
 
-  // 2. Forward to Make Webhook via Server-side Endpoint (/api/orders/webhook)
+  // 2. Save to Supabase (Customers and Orders)
+  let supabaseOrderSaved = false;
   try {
+    // 2.1 Save or update Customer
+    let customerId = null;
+    const { data: customerData, error: customerError } = await supabase
+      .from('customers')
+      .upsert({
+        phone: payload.phone, // unique constraint
+        name: payload.customer_name,
+        city: payload.city || 'صنعاء',
+        address: payload.address,
+        notes: payload.notes || ''
+      }, { onConflict: 'phone' })
+      .select('id')
+      .single();
+
+    if (!customerError && customerData) {
+      customerId = customerData.id;
+    }
+
+    // 2.2 Save Order
+    const { error: orderInsertError } = await supabase.from('orders').insert({
+      id: sequentialId,
+      order_number: sequentialId,
+      customer_id: customerId,
+      customer_name: payload.customer_name,
+      customer_phone: payload.phone,
+      city: payload.city || 'صنعاء',
+      address: payload.address,
+      status: 'pending',
+      items: payload.items,
+      subtotal: payload.subtotal || 0,
+      discount: payload.discount || 0,
+      coupon_code: payload.coupon_code || null,
+      shipping: payload.delivery_fee || 0,
+      total: payload.total,
+      notes: payload.notes || ''
+    });
+    if (!orderInsertError) supabaseOrderSaved = true;
+  } catch (err) {
+    console.warn('Supabase order insert notice (local persistence active):', err);
+  }
+
+  // 3. Notify Telegram through the Make Webhook only after the Supabase order is saved
+  if (supabaseOrderSaved) try {
     let intlPhone = payload.phone.replace(/\D/g, '');
     if (intlPhone.startsWith('967')) {
       intlPhone = `+${intlPhone}`;
@@ -201,6 +245,19 @@ export async function createAndPersistOrder(payload: {
       intlPhone = `+${intlPhone}`;
     }
 
+    const productsText = payload.items.map(item => `${item.name || ''} × ${item.quantity || 1} — ${((item.price || 0) * (item.quantity || 1)).toLocaleString()} ر.ي`).join('\n');
+    const couponText = payload.coupon_code ? `${payload.coupon_code} (-${(payload.discount || 0).toLocaleString()} ر.ي)` : 'لا يوجد';
+    const telegramMessage = [
+      'طلب جديد من متجر وِد',
+      `رقم الطلب: ${sequentialId}`,
+      `اسم العميل: ${payload.customer_name}`,
+      `رقم الهاتف: ${intlPhone}`,
+      `المدينة: ${payload.city || 'صنعاء'}`,
+      `العنوان: ${payload.address}`,
+      'المنتجات:', productsText,
+      `كود الخصم: ${couponText}`,
+      `الإجمالي: ${(payload.total || 0).toLocaleString()} ر.ي`
+    ].join('\n');
     const webhookPayload = {
       event: 'order.created',
       order: {
@@ -228,7 +285,16 @@ export async function createAndPersistOrder(payload: {
         total: payload.total || 0
       },
       notes: payload.notes || '',
-      idempotency_key: sequentialId
+      idempotency_key: sequentialId,
+      customer_name: payload.customer_name,
+      customer_phone: intlPhone,
+      city: payload.city || 'صنعاء',
+      address: payload.address,
+      products_text: productsText,
+      coupon_code: payload.coupon_code || '',
+      discount: payload.discount || 0,
+      total: payload.total || 0,
+      telegram_message: telegramMessage
     };
 
     fetch('/api/orders/webhook', {
@@ -236,54 +302,13 @@ export async function createAndPersistOrder(payload: {
       headers: {
         'Content-Type': 'application/json'
       },
+      keepalive: true,
       body: JSON.stringify(webhookPayload)
     }).catch(err => {
       console.warn('Webhook trigger notice (offline/queued):', err);
     });
   } catch (webhookErr) {
     console.warn('Webhook initiation notice:', webhookErr);
-  }
-
-  // 3. Save to Supabase (Customers and Orders)
-  try {
-    // 3.1 Save or update Customer
-    let customerId = null;
-    const { data: customerData, error: customerError } = await supabase
-      .from('customers')
-      .upsert({
-        phone: payload.phone, // unique constraint
-        name: payload.customer_name,
-        city: payload.city || 'صنعاء',
-        address: payload.address,
-        notes: payload.notes || ''
-      }, { onConflict: 'phone' })
-      .select('id')
-      .single();
-
-    if (!customerError && customerData) {
-      customerId = customerData.id;
-    }
-
-    // 3.2 Save Order
-    await supabase.from('orders').insert({
-      id: sequentialId,
-      order_number: sequentialId,
-      customer_id: customerId,
-      customer_name: payload.customer_name,
-      customer_phone: payload.phone,
-      city: payload.city || 'صنعاء',
-      address: payload.address,
-      status: 'pending',
-      items: payload.items,
-      subtotal: payload.subtotal || 0,
-      discount: payload.discount || 0,
-      coupon_code: payload.coupon_code || null,
-      shipping: payload.delivery_fee || 0,
-      total: payload.total,
-      notes: payload.notes || ''
-    });
-  } catch (err) {
-    console.warn('Supabase order insert notice (local persistence active):', err);
   }
 
   // 4. Dispatch events to notify Admin Dashboard & Navbar

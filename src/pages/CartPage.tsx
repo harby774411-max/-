@@ -40,7 +40,10 @@ export const CartPage = () => {
     orderId: string;
     total: number;
     phone: string;
+    customerName: string;
+    address: string;
     city: string;
+    items: { name: string; quantity: number }[];
     isOutsideSanaa: boolean;
   } | null>(null);
 
@@ -166,7 +169,7 @@ export const CartPage = () => {
         total: finalTotal,
         subtotal: totalPrice,
         discount: discountAmount,
-        coupon_code: discountPercent > 0 ? couponCode.trim().toUpperCase() : undefined,
+        coupon_code: discountAmount > 0 ? couponCode.trim().toUpperCase() : undefined,
         delivery_fee: shippingFee,
         items: items.map(i => ({
           id: i.id || i.productId,
@@ -186,7 +189,10 @@ export const CartPage = () => {
         orderId,
         total: finalTotal,
         phone: cleanPhone,
+        customerName: formData.fullName.trim(),
+        address: `${cityName} - ${formData.address.trim()}`,
         city: cityName,
+        items: items.map(i => ({ name: i.nameAr, quantity: i.quantity })),
         isOutsideSanaa
       });
 
@@ -293,12 +299,20 @@ export const CartPage = () => {
             {/* Direct Actions */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <a
-                href={`https://wa.me/967781272125?text=${encodeURIComponent(`مرحباً وِد، أؤكد طلبي رقم ${completedOrder.orderId}`)}`}
+                href={`https://wa.me/967781272125?text=${encodeURIComponent([
+                  'مرحباً وِد، لقد قمت بإتمام طلب جديد عبر المتجر!',
+                  `رقم الطلب: ${completedOrder.orderId}`,
+                  `الاسم: ${completedOrder.customerName}`,
+                  `الهاتف: ${completedOrder.phone}`,
+                  `العنوان: ${completedOrder.address}`,
+                  `المنتجات: ${completedOrder.items.map(item => `${item.name} × ${item.quantity}`).join('، ')}`,
+                  `الإجمالي: ${completedOrder.total.toLocaleString()} ر.ي`
+                ].join('\n'))}`}
                 target="_blank" rel="noreferrer"
                 className="flex-1 bg-[#25D366] text-white py-3.5 rounded-2xl text-xs sm:text-sm font-bold arabic-text hover:bg-[#1ebe5d] transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
               >
                 <WhatsAppIcon size={17} />
-                <span>تأكيد الطلب عبر واتساب</span>
+                <span>إرسال تفاصيل الطلبية عبر الواتساب</span>
               </a>
               <button
                 onClick={() => navigate('/')}
