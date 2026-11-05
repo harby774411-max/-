@@ -18,6 +18,8 @@ export const CartPage = () => {
   const [verificationStep, setVerificationStep] = useState<'info' | 'success'>('info');
   const [couponCode, setCouponCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
+  const [discountValue, setDiscountValue] = useState(0);
   const [couponMsg, setCouponMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   
   // Governorate and shipping selection
@@ -73,20 +75,22 @@ export const CartPage = () => {
     ? (deliveryType === 'express' ? 1500 : 0)
     : (isSanaaRural ? 1500 : 0);
 
-  const discountAmount = Math.round((totalPrice * discountPercent) / 100);
+  const discountAmount = discountType === 'fixed' ? Math.min(totalPrice, Math.round(discountValue)) : Math.round((totalPrice * discountPercent) / 100);
   const finalTotal = Math.max(0, totalPrice - discountAmount + shippingFee);
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = couponCode.trim().toUpperCase();
-    const { data } = await supabase.from('coupons').select('code, discount_percent, is_active').eq('code', code).eq('is_active', true).maybeSingle();
-    const percent = data ? Number(data.discount_percent) : (code === 'WED10' || code === 'WED' || code === 'WEDVIP' ? 10 : 0);
-    if (percent > 0) {
-      setDiscountPercent(percent);
-      setCouponMsg({ text: `تم تطبيق كود الخصم (${percent}%) بنجاح 🌸`, type: 'success' });
+    const { data } = await supabase.from('coupons').select('code, discount_percent, discount_type, discount_value, is_active').eq('code', code).eq('is_active', true).maybeSingle();
+    const type = data?.discount_type === 'fixed' ? 'fixed' : 'percent';
+    const value = data ? Number(data.discount_value || data.discount_percent) : (code === 'WED10' || code === 'WED' || code === 'WEDVIP' ? 10 : 0);
+    const percent = type === 'percent' ? value : 0;
+    if (value > 0) {
+      setDiscountType(type); setDiscountValue(value); setDiscountPercent(percent);
+      setCouponMsg({ text: type === 'fixed' ? `تم تطبيق خصم ثابت بقيمة ${value.toLocaleString()} ر.ي بنجاح 🌸` : `تم تطبيق كود الخصم (${percent}%) بنجاح 🌸`, type: 'success' });
     } else {
       setCouponMsg({ text: 'كود الخصم غير صالح أو منتهي الصلاحية.', type: 'error' });
-      setDiscountPercent(0);
+      setDiscountPercent(0); setDiscountValue(0); setDiscountType('percent');
     }
   };
 
@@ -669,7 +673,7 @@ export const CartPage = () => {
 
                     {discountPercent > 0 && (
                       <div className="flex justify-between text-emerald-700 font-bold">
-                        <span>الخصم ({discountPercent}%):</span>
+                        <span>الخصم ({discountType === 'fixed' ? 'مبلغ ثابت' : `${discountPercent}%`}):</span>
                         <span className="font-sans">-{discountAmount.toLocaleString()} ر.ي</span>
                       </div>
                     )}
