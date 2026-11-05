@@ -62,7 +62,7 @@ interface SettingsContextType {
 
 const DEFAULT_SETTINGS: StoreSettings = {
   store_name: 'ود',
-  store_slogan: 'للعناية بالبشرة',
+  store_slogan: 'وِد — قـد الثقة',
   whatsapp: '+967781272125',
   whatsapp_orders: '+967781272125',
   whatsapp_courier: '+967771111111',
@@ -80,7 +80,7 @@ const DEFAULT_SETTINGS: StoreSettings = {
   whatsapp_admin_alerts_enabled: true,
   whatsapp_customer_confirmation_enabled: true,
   ai_training_rules: DEFAULT_AI_TRAINING_RULES,
-  logo_url: '',
+  logo_url: 'https://raw.githubusercontent.com/harby774411-max/-/main/logo.webp.webp',
   top_icon_url: '',
   middle_icon_url: '',
   bg_url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=2070',

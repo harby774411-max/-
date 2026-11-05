@@ -165,14 +165,10 @@ export const ProductDetail = () => {
   return (
     <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 bg-brand-cream min-h-screen text-brand-text">
       <div className="max-w-7xl mx-auto">
-        {/* Breadcrumbs */}
-        <nav className="flex items-center gap-2 arabic-text text-xs mb-6 text-brand-muted overflow-x-auto whitespace-nowrap">
-          <Link to="/" className="hover:text-brand-blue transition-colors">الرئيسية</Link>
-          <ArrowRight size={12} className="rotate-180 text-brand-muted/70" />
-          <Link to="/products" className="hover:text-brand-blue transition-colors">المنتجات</Link>
-          <ArrowRight size={12} className="rotate-180 text-brand-muted/70" />
-          <span className="text-brand-text font-black">{product.nameAr}</span>
-        </nav>
+        <Link to="/" className="inline-flex items-center gap-2 mb-6 rounded-xl bg-brand-blue text-white px-4 py-2.5 text-xs sm:text-sm font-bold arabic-text shadow-xs hover:bg-brand-blue/90 transition-colors">
+          <ArrowRight size={16} className="rotate-180" />
+          <span>الرجوع للمتجر</span>
+        </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Image Gallery */}
@@ -258,29 +254,9 @@ export const ProductDetail = () => {
               )}
             </div>
 
-            {product.shortDescriptionAr && (
-              <p className="arabic-text text-xs sm:text-sm text-brand-text/90 font-bold leading-relaxed">
-                {product.shortDescriptionAr}
-              </p>
-            )}
-
             <p className="arabic-text text-xs sm:text-sm text-brand-text/80 leading-relaxed bg-white p-4 rounded-2xl border border-brand-border shadow-2xs">
               {product.descriptionAr}
             </p>
-
-            {/* Product Meta */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-3 bg-white rounded-xl border border-brand-border">
-                <span className="text-brand-muted block mb-0.5">الحجم / السعة:</span>
-                <span className="font-bold text-brand-text">{product.size || '30 مل'}</span>
-              </div>
-              <div className="p-3 bg-white rounded-xl border border-brand-border">
-                <span className="text-brand-muted block mb-0.5">حالة المخزون:</span>
-                <span className={cn("font-bold", product.stock > 0 ? "text-emerald-700" : "text-red-600")}>
-                  {product.stock > 0 ? `متوفر جاهز للشحن (${product.stock} قطع)` : 'نفد من المخزون مؤقتاً'}
-                </span>
-              </div>
-            </div>
 
             {/* Actions */}
             <div className="space-y-3 pt-2">

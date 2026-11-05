@@ -18,9 +18,9 @@ export const WedLogo: React.FC<WedLogoProps> = ({
   const { settings } = useSettings();
   const [imageError, setImageError] = React.useState(false);
 
-  const customLogoUrl = settings?.logo_url;
+  const customLogoUrl = settings?.logo_url || 'https://raw.githubusercontent.com/harby774411-max/-/main/logo.webp.webp';
   const storeNameAr = settings?.store_name || 'ود';
-  const storeSlogan = settings?.store_slogan || 'للعناية بالبشرة';
+  const storeSlogan = 'وِد — قـد الثقة';
 
   // Automatically reset image error state whenever logo URL is updated
   React.useEffect(() => {
@@ -53,7 +53,7 @@ export const WedLogo: React.FC<WedLogoProps> = ({
           <img 
             src={customLogoUrl} 
             alt={storeNameAr} 
-            className="w-full h-full object-cover rounded-full shadow-xs"
+            className="w-full h-full object-contain rounded-xl shadow-xs"
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
           />

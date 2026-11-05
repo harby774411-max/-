@@ -80,12 +80,14 @@ export const CartPage = () => {
   const discountAmount = Math.round((totalPrice * discountPercent) / 100);
   const finalTotal = Math.max(0, totalPrice - discountAmount + shippingFee);
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = couponCode.trim().toUpperCase();
-    if (code === 'WED10' || code === 'WED' || code === 'WEDVIP') {
-      setDiscountPercent(10);
-      setCouponMsg({ text: 'تم تطبيق كود الخصم (10%) بنجاح 🌸', type: 'success' });
+    const { data } = await supabase.from('coupons').select('code, discount_percent, is_active').eq('code', code).eq('is_active', true).maybeSingle();
+    const percent = data ? Number(data.discount_percent) : (code === 'WED10' || code === 'WED' || code === 'WEDVIP' ? 10 : 0);
+    if (percent > 0) {
+      setDiscountPercent(percent);
+      setCouponMsg({ text: `تم تطبيق كود الخصم (${percent}%) بنجاح 🌸`, type: 'success' });
     } else {
       setCouponMsg({ text: 'كود الخصم غير صالح أو منتهي الصلاحية.', type: 'error' });
       setDiscountPercent(0);
@@ -178,6 +180,9 @@ export const CartPage = () => {
       });
 
       const orderId = newOrder.orderNumber || newOrder.id;
+      if (discountPercent > 0 && couponCode.trim()) {
+        await supabase.rpc('increment_coupon_stats', { p_code: couponCode.trim().toUpperCase(), p_sale: finalTotal, p_discount: discountAmount });
+      }
 
       setCompletedOrder({
         orderId,
@@ -289,13 +294,14 @@ export const CartPage = () => {
 
             {/* Direct Actions */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                onClick={() => navigate(`/track?order=${completedOrder.orderId}`)}
-                className="flex-1 bg-brand-blue text-white py-3.5 rounded-2xl text-xs sm:text-sm font-bold arabic-text hover:bg-brand-blue/90 transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+              <a
+                href={`https://wa.me/967781272125?text=${encodeURIComponent(`مرحباً وِد، أؤكد طلبي رقم ${completedOrder.orderId}`)}`}
+                target="_blank" rel="noreferrer"
+                className="flex-1 bg-[#25D366] text-white py-3.5 rounded-2xl text-xs sm:text-sm font-bold arabic-text hover:bg-[#1ebe5d] transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
               >
-                <span>تتبع حالة الشحنة</span>
-                <ArrowRight size={14} />
-              </button>
+                <WhatsAppIcon size={17} />
+                <span>تأكيد الطلب عبر واتساب</span>
+              </a>
               <button
                 onClick={() => navigate('/')}
                 className="flex-1 bg-brand-cream text-brand-text border border-brand-border py-3.5 rounded-2xl text-xs sm:text-sm font-bold arabic-text hover:bg-brand-cream/80 transition-all cursor-pointer"

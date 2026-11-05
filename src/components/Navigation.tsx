@@ -1,11 +1,23 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, MessageCircle, Instagram, Facebook, Music2, Ghost } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { WedLogo } from './WedLogo';
+import { WhatsAppIcon, InstagramIcon, TikTokIcon, SnapchatIcon, FacebookIcon } from './SocialIcons';
 
 const links = { instagram: 'https://www.instagram.com/wad_skin', facebook: 'https://www.facebook.com/share/1FCqT2nDS4/?mibextid=wwXIfr', tiktok: 'https://www.tiktok.com/@wad_skin', snapchat: 'https://snapchat.com/t/mkn0yzLg', whatsapp: 'https://wa.me/967781272125' };
 
-export const Navbar: React.FC = () => { const { totalItems } = useCart(); return <nav className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-b border-brand-border"><div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between"><Link to="/"><WedLogo size="md" variant="default" /></Link><div className="flex items-center gap-2"><a href={links.whatsapp} target="_blank" rel="noreferrer" className="hidden sm:flex items-center gap-1 text-xs font-bold text-green-700 px-3 py-2 rounded-full bg-green-50"><MessageCircle size={15}/> واتساب</a><Link to="/cart" className="relative p-3 rounded-full bg-brand-blue text-white"><ShoppingBag size={19}/>{totalItems > 0 && <span className="absolute -top-1 -right-1 bg-brand-pink text-brand-text text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center">{totalItems}</span>}</Link></div></div></nav>; };
+export const Navbar: React.FC = () => {
+  const { totalItems } = useCart();
+  return <nav className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-b border-brand-border">
+    <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
+      <Link to="/"><WedLogo size="md" variant="default" /></Link>
+      <div className="flex items-center gap-2">
+        <a href={links.whatsapp} target="_blank" rel="noreferrer" aria-label="التواصل عبر واتساب" className="p-3 rounded-full bg-[#25D366] text-white shadow-sm hover:bg-[#1ebe5d] transition-colors"><WhatsAppIcon size={19} /></a>
+        <Link to="/cart" aria-label="سلة المشتريات" className="relative p-3 rounded-full bg-brand-blue text-white"><ShoppingBag size={19}/>{totalItems > 0 && <span className="absolute -top-1 -right-1 bg-brand-pink text-brand-text text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center">{totalItems}</span>}</Link>
+      </div>
+    </div>
+  </nav>;
+};
 
-export const Footer: React.FC = () => <footer className="bg-[#233446] text-white py-8 mt-10"><div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row gap-5 items-center justify-between"><div className="text-center sm:text-right"><WedLogo size="md" variant="white"/><p className="text-white/70 text-xs mt-2">وِد — عناية مختارة لبشرتك.</p></div><div className="flex items-center gap-2"><a href={links.instagram} target="_blank" rel="noreferrer" aria-label="Instagram" className="p-2 rounded-lg bg-white/10"><Instagram size={17}/></a><a href={links.facebook} target="_blank" rel="noreferrer" aria-label="Facebook" className="p-2 rounded-lg bg-white/10"><Facebook size={17}/></a><a href={links.tiktok} target="_blank" rel="noreferrer" aria-label="TikTok" className="p-2 rounded-lg bg-white/10"><Music2 size={17}/></a><a href={links.snapchat} target="_blank" rel="noreferrer" aria-label="Snapchat" className="p-2 rounded-lg bg-[#FFFC00] text-black"><Ghost size={17}/></a></div></div></footer>;
+export const Footer: React.FC = () => <footer className="bg-[#233446] text-white py-8 mt-10"><div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row gap-5 items-center justify-between"><div className="text-center sm:text-right"><WedLogo size="md" variant="white"/><p className="text-white/70 text-xs mt-2">وِد — قـد الثقة</p></div><div className="flex items-center gap-2"><a href={links.whatsapp} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="p-2 rounded-lg bg-[#25D366] text-white"><WhatsAppIcon size={17}/></a><a href={links.instagram} target="_blank" rel="noreferrer" aria-label="Instagram" className="p-2 rounded-lg bg-[#E1306C] text-white"><InstagramIcon size={17}/></a><a href={links.facebook} target="_blank" rel="noreferrer" aria-label="Facebook" className="p-2 rounded-lg bg-[#1877F2] text-white"><FacebookIcon size={17}/></a><a href={links.tiktok} target="_blank" rel="noreferrer" aria-label="TikTok" className="p-2 rounded-lg bg-black text-white"><TikTokIcon size={17}/></a><a href={links.snapchat} target="_blank" rel="noreferrer" aria-label="Snapchat" className="p-2 rounded-lg bg-[#FFFC00] text-black"><SnapchatIcon size={17}/></a></div></div></footer>;

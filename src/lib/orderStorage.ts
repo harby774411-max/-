@@ -272,6 +272,8 @@ export async function createAndPersistOrder(payload: {
       status: 'pending',
       items: payload.items,
       subtotal: payload.subtotal || 0,
+      discount: payload.discount || 0,
+      coupon_code: payload.coupon_code || null,
       shipping: payload.delivery_fee || 0,
       total: payload.total,
       notes: payload.notes || ''
