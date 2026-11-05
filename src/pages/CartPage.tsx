@@ -7,7 +7,6 @@ import { supabase } from '../lib/supabase';
 import { createAndPersistOrder } from '../lib/orderStorage';
 import { YEMEN_GOVERNORATES } from '../data';
 import { WhatsAppIcon } from '../components/SocialIcons';
-import { BirthdayInput } from '../components/BirthdayInput';
 import { cn } from '../lib/utils';
 
 export const CartPage = () => {
@@ -26,16 +25,13 @@ export const CartPage = () => {
   const [customGovName, setCustomGovName] = useState<string>('');
   const [deliveryType, setDeliveryType] = useState<'standard' | 'express'>('standard');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer_kuraimi' | 'transfer_jeeb' | 'transfer_floosak' | 'transfer_onecash' | 'transfer_bank'>('cash');
-  const [birthdaySkipped, setBirthdaySkipped] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
     address: '',
     notes: '',
-    deliverySlot: 'tomorrow',
-    birthday: '',
-    joinBirthdayClub: true
+    deliverySlot: 'tomorrow'
   });
   
   const [completedOrder, setCompletedOrder] = useState<{
@@ -142,7 +138,6 @@ export const CartPage = () => {
         await supabase.from('customers').upsert({
           phone_number: cleanPhone,
           name: formData.fullName.trim(),
-          birthday: formData.birthday || null,
           city: cityName,
           is_verified: true
         }, { onConflict: 'phone_number' });
@@ -176,7 +171,6 @@ export const CartPage = () => {
           price: i.price,
           image: i.imageUrl || i.images?.[0]
         })),
-        customer_birthday: (!birthdaySkipped && formData.birthday) ? formData.birthday : undefined
       });
 
       const orderId = newOrder.orderNumber || newOrder.id;
@@ -532,50 +526,6 @@ export const CartPage = () => {
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                       />
-                    </div>
-
-                    {/* Birthday Field with Skip Option */}
-                    <div className="p-3 bg-brand-cream/60 rounded-2xl border border-brand-border space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-brand-text">
-                          <span>🎂 تاريخ الميلاد (اختياري)</span>
-                        </div>
-                        {!birthdaySkipped && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setBirthdaySkipped(true);
-                              setFormData({ ...formData, birthday: '' });
-                            }}
-                            className="text-[11px] font-bold text-brand-muted hover:text-brand-text bg-white px-2.5 py-1 rounded-lg border border-brand-border hover:bg-gray-50 transition-all cursor-pointer"
-                          >
-                            تخطي ✕
-                          </button>
-                        )}
-                      </div>
-
-                      {birthdaySkipped ? (
-                        <div className="flex items-center justify-between text-[11px] text-brand-muted bg-white p-2 rounded-xl border border-brand-border">
-                          <span>تم تخطي تسجيل تاريخ الميلاد</span>
-                          <button
-                            type="button"
-                            onClick={() => setBirthdaySkipped(false)}
-                            className="text-brand-blue font-bold hover:underline cursor-pointer"
-                          >
-                            إضافة تاريخ الميلاد
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-[10px] text-brand-muted leading-relaxed">
-                            سجلي تاريخ ميلادكِ لتلقي هدية ومفاجأة خصم حصرية من «وِد» في يومكِ المميز! 🌸
-                          </p>
-                          <BirthdayInput
-                            value={formData.birthday}
-                            onChange={(val) => setFormData({ ...formData, birthday: val })}
-                          />
-                        </>
-                      )}
                     </div>
 
                     {/* Payment Method */}

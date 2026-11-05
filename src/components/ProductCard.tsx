@@ -224,7 +224,7 @@ export const ProductCard: React.FC<{ product: Product; showReason?: boolean; isA
                   className="w-full bg-brand-blue text-white py-3 rounded-xl arabic-text font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs hover:bg-brand-blue-dark transition-all cursor-pointer"
                 >
                   <ShoppingBag className="w-4 h-4" />
-                  <span>المتابعة إلى سلة الشراء</span>
+                  <span>التوجه إلى السلة / إتمام الطلب</span>
                 </button>
                 <button
                   onClick={() => setShowNotification(false)}

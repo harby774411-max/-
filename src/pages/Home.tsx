@@ -20,7 +20,7 @@ export const Home: React.FC = () => {
   return <div className="bg-brand-cream min-h-screen pt-20" dir="rtl">
     <header className="max-w-6xl mx-auto px-4 pt-4">
       <div className="overflow-hidden border border-brand-border bg-white shadow-sm">
-        <img src={`${RAW}banner.webp.webp`} alt="وِد — قـد الثقة" className="w-full h-40 sm:h-64 object-cover" />
+        <img src={`${RAW}banner.webp.webp`} alt="وِد — قـد الثقة" className="w-full h-auto object-contain" />
       </div>
     </header>
     <main id="products-section" className="max-w-6xl mx-auto px-4 py-8">
