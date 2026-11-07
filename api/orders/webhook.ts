@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
+const MAKE_WEBHOOK_FALLBACK = 'https://hook.eu1.make.com/hft85bliffldixrlakorrne1pq3b8j6f';
+
 function json(res: any, status: number, body: unknown) {
   res.status(status).setHeader('Content-Type', 'application/json');
   return res.end(JSON.stringify(body));
@@ -119,8 +121,11 @@ export default async function handler(req: any, res: any) {
 
     let makeStatus = 'not_configured';
     let whatsappStatus = 'not_configured';
-    const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
-    if (makeWebhookUrl && saved?.status !== 'already_processed') {
+    const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL || MAKE_WEBHOOK_FALLBACK;
+    console.log('[Wad Telegram webhook] using Make endpoint:', process.env.MAKE_WEBHOOK_URL ? 'environment variable' : 'verified fallback for scenario 7237136');
+    // The order may already exist because the client performs a best-effort save.
+    // Notification delivery must still run; Supabase idempotency and Make's order key handle duplicates.
+    if (makeWebhookUrl) {
       const makeItems = Array.isArray(payload.items)
         ? payload.items.map((item: any) => `${item.product_name || item.name || item.product_id || 'منتج'} × ${item.quantity || 1}`).join('، ')
         : String(payload.products || '');
@@ -141,12 +146,14 @@ export default async function handler(req: any, res: any) {
         customer: { ...customer, phone: customerPhone },
         order: { ...order, order_id: saved?.order_id || idempotencyKey }
       };
+      console.log('[Wad Telegram webhook] outgoing payload:', JSON.stringify(makePayload));
       const makeResponse = await fetchWithTimeout(makeWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Order-Event': 'order.created', 'X-Idempotency-Key': idempotencyKey },
         body: JSON.stringify(makePayload)
       });
       makeStatus = makeResponse.ok ? 'forwarded_to_make' : `make_http_${makeResponse.status}`;
+      console.log('[Wad Telegram webhook] response:', { status: makeResponse.status, ok: makeResponse.ok, orderId: idempotencyKey });
     }
 
     if (saved?.status !== 'already_processed') {
@@ -171,7 +178,7 @@ export default async function handler(req: any, res: any) {
       whatsapp_status: whatsappStatus
     });
   } catch (error: any) {
-    console.error('[Wad order webhook]', error?.message || error);
+    console.error('[Wad order webhook] failed:', { error: error?.message || error, stack: error?.stack, orderId: idempotencyKey });
     return json(res, 500, { success: false, error: 'Could not process order safely.' });
   }
 }

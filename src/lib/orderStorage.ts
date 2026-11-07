@@ -237,7 +237,7 @@ export async function createAndPersistOrder(payload: {
       console.warn('Background Supabase order save notice:', err);
     }
 
-    if (!supabaseOrderSaved) return;
+    // Always notify the server-side route. It owns the production RPC/Make delivery.
     try {
       const intlPhone = (() => {
         const digits = payload.phone.replace(/\D/g, '');

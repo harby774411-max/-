@@ -20,6 +20,7 @@ try {
 
 // In-memory idempotency cache to prevent duplicate webhook delivery
 const processedOrders = new Set<string>();
+const MAKE_WEBHOOK_FALLBACK = 'https://hook.eu1.make.com/hft85bliffldixrlakorrne1pq3b8j6f';
 
 async function startServer() {
   const app = express();
@@ -44,7 +45,8 @@ async function startServer() {
     void (async () => {
       const idempotencyKey = String(orderData.idempotency_key || orderId);
       if (processedOrders.has(idempotencyKey)) return;
-      const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
+      const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL || MAKE_WEBHOOK_FALLBACK;
+      console.log('[Wad Telegram webhook] using Make endpoint:', process.env.MAKE_WEBHOOK_URL ? 'environment variable' : 'verified fallback for scenario 7237136');
       if (!makeWebhookUrl) {
         console.error('[Make Webhook] MAKE_WEBHOOK_URL is missing in production environment.');
         return;
@@ -52,12 +54,14 @@ async function startServer() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2000);
       try {
+        console.log('[Wad Telegram webhook] outgoing payload:', JSON.stringify(orderData));
         const response = await fetch(makeWebhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Order-Event': 'order.created', 'X-Idempotency-Key': idempotencyKey },
           body: JSON.stringify(orderData),
           signal: controller.signal
         });
+        console.log('[Wad Telegram webhook] response:', { status: response.status, ok: response.ok, orderId });
         if (response.ok) processedOrders.add(idempotencyKey);
         else console.warn(`[Make Webhook] HTTP ${response.status} for order ${orderId}`);
       } catch (error: any) {
