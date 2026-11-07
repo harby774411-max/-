@@ -140,18 +140,7 @@ export const CartPage = () => {
         ? (customGovName.trim() || 'محافظة أخرى')
         : (govObj ? govObj.nameAr : selectedGov);
 
-      // Save / Update Customer in DB if available
-      try {
-        await supabase.from('customers').upsert({
-          phone_number: cleanPhone,
-          name: formData.fullName.trim(),
-          city: cityName,
-          is_verified: true
-        }, { onConflict: 'phone_number' });
-      } catch (upsertErr) {
-        // Table or columns might be optional
-      }
-
+      // Remote customer/order persistence is handled in the background by createAndPersistOrder.
       const shippingLabel = isSanaaCity
         ? (deliveryType === 'express' ? 'توصيل مستعجل خلال 12 ساعة (صنعاء)' : 'توصيل قياسي مجاني (صنعاء)')
         : (isSanaaRural ? 'توصيل ضواحي صنعاء (24-48 ساعة)' : `شحن المحافظات (${cityName}) - تكلفة الشحن منفصلة`);
@@ -181,8 +170,8 @@ export const CartPage = () => {
       });
 
       const orderId = newOrder.orderNumber || newOrder.id;
-      if (discountPercent > 0 && couponCode.trim()) {
-        await supabase.rpc('increment_coupon_stats', { p_code: couponCode.trim().toUpperCase(), p_sale: finalTotal, p_discount: discountAmount });
+      if (discountAmount > 0 && couponCode.trim()) {
+        void Promise.resolve(supabase.rpc('increment_coupon_stats', { p_code: couponCode.trim().toUpperCase(), p_sale: finalTotal, p_discount: discountAmount })).then(({ error }) => { if (error) console.warn('Coupon stats notice:', error); }).catch((error) => console.warn('Coupon stats notice:', error));
       }
 
       setCompletedOrder({

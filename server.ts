@@ -32,117 +32,41 @@ async function startServer() {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
-  // API: Forward Order to Make Webhook (Server-Side Only)
-  app.post('/api/orders/webhook', async (req, res) => {
-    try {
-      const orderData = req.body;
-
-      if (!orderData || !orderData.order || !orderData.order.order_id) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Missing order_id or order payload' 
-        });
-      }
-
-      const idempotencyKey = orderData.idempotency_key || orderData.order.order_id;
-
-      // Idempotency protection: Prevent duplicate webhooks for the exact same order
-      if (processedOrders.has(idempotencyKey)) {
-        return res.json({ 
-          success: true, 
-          status: 'already_processed', 
-          message: 'Order webhook already processed previously',
-          order_id: orderData.order.order_id 
-        });
-      }
-
-      const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
-      
-      if (!makeWebhookUrl) {
-        console.error('[Server Error]: MAKE_WEBHOOK_URL is missing in environment variables.');
-        return res.status(500).json({
-          success: false,
-          error: 'Webhook configuration error on server'
-        });
-      }
-
-      // Send to Make with retry mechanism (up to 2 retries on network/5xx error)
-      let attempts = 0;
-      const maxAttempts = 3;
-      let lastError: any = null;
-      let webhookSuccess = false;
-      let webhookStatus = 200;
-
-      while (attempts < maxAttempts && !webhookSuccess) {
-        attempts++;
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 7000);
-
-          const response = await fetch(makeWebhookUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Order-Event': 'order.created',
-              'X-Idempotency-Key': String(idempotencyKey)
-            },
-            body: JSON.stringify(orderData), // Forward the strictly structured JSON
-            signal: controller.signal
-          });
-
-          clearTimeout(timeoutId);
-
-          if (response.ok || response.status === 200 || response.status === 201 || response.status === 204) {
-            webhookSuccess = true;
-            webhookStatus = response.status;
-            processedOrders.add(idempotencyKey);
-            break;
-          } else {
-            webhookStatus = response.status;
-            lastError = new Error(`Make Webhook returned HTTP status ${response.status}`);
-            // Wait briefly before retry if not last attempt
-            if (attempts < maxAttempts) {
-              await new Promise((r) => setTimeout(r, 600 * attempts));
-            }
-          }
-        } catch (fetchErr: any) {
-          lastError = fetchErr;
-          if (attempts < maxAttempts) {
-            await new Promise((r) => setTimeout(r, 600 * attempts));
-          }
-        }
-      }
-
-      if (webhookSuccess) {
-        return res.json({
-          success: true,
-          status: 'forwarded_to_make',
-          order_id: orderData.order.order_id,
-          message: 'تم إرسال بيانات الطلب إلى Make بنجاح'
-        });
-      } else {
-        // Fallback: If Make is temporarily unreachable, do not fail the purchase.
-        // Return pending_automation status so client stores it locally.
-        console.warn(`[Make Webhook] Could not reach Make after ${attempts} attempts:`, lastError?.message);
-        return res.json({
-          success: true,
-          status: 'pending_automation',
-          order_id: orderData.order.order_id,
-          warning: 'Order created but Make automation queued for retry'
-        });
-      }
-
-    } catch (err: any) {
-      console.error('[Server Error in /api/orders/webhook]:', err);
-      // Return success with pending_automation to prevent disrupting user experience
-      return res.status(200).json({
-        success: true,
-        status: 'pending_automation',
-        error: err?.message || 'Server automation error'
-      });
+  // API: Accept the notification request immediately; Make/Telegram runs in the background.
+  app.post('/api/orders/webhook', (req, res) => {
+    const orderData = req.body;
+    if (!orderData || !orderData.order || !orderData.order.order_id) {
+      return res.status(400).json({ success: false, error: 'Missing order_id or order payload' });
     }
-  });
+    const orderId = String(orderData.order.order_id);
+    res.status(202).json({ success: true, status: 'accepted_background', order_id: orderId });
 
+    void (async () => {
+      const idempotencyKey = String(orderData.idempotency_key || orderId);
+      if (processedOrders.has(idempotencyKey)) return;
+      const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
+      if (!makeWebhookUrl) {
+        console.error('[Make Webhook] MAKE_WEBHOOK_URL is missing in production environment.');
+        return;
+      }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      try {
+        const response = await fetch(makeWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Order-Event': 'order.created', 'X-Idempotency-Key': idempotencyKey },
+          body: JSON.stringify(orderData),
+          signal: controller.signal
+        });
+        if (response.ok) processedOrders.add(idempotencyKey);
+        else console.warn(`[Make Webhook] HTTP ${response.status} for order ${orderId}`);
+      } catch (error: any) {
+        console.warn(`[Make Webhook] Background delivery failed for ${orderId}:`, error?.message || error);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    })().catch(error => console.warn('[Make Webhook] Background task failed:', error));
+  });
   // API: Server-side Gemini AI Skincare Consultant
   app.post('/api/ai/chat', async (req, res) => {
     try {

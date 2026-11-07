@@ -12,6 +12,16 @@ function normalizePhone(value: unknown): string {
   return raw ? `+${raw}` : '';
 }
 
+async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs = 2000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function sendWhatsAppOrderNotification(input: {
   orderId: string;
   customerName: string;
@@ -28,7 +38,7 @@ async function sendWhatsAppOrderNotification(input: {
     return { status: 'not_configured' } as const;
   }
   const graphVersion = process.env.META_GRAPH_API_VERSION || 'v26.0';
-  const response = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
+  const response = await fetchWithTimeout(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -131,7 +141,7 @@ export default async function handler(req: any, res: any) {
         customer: { ...customer, phone: customerPhone },
         order: { ...order, order_id: saved?.order_id || idempotencyKey }
       };
-      const makeResponse = await fetch(makeWebhookUrl, {
+      const makeResponse = await fetchWithTimeout(makeWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Order-Event': 'order.created', 'X-Idempotency-Key': idempotencyKey },
         body: JSON.stringify(makePayload)
