@@ -24,6 +24,54 @@ async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs = 20
   }
 }
 
+async function sendEmergencyEmail(input: {
+  orderId: string;
+  customerName: string;
+  customerPhone: string;
+  city: string;
+  address: string;
+  products: string;
+  total: number;
+  failure: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.EMERGENCY_ALERT_EMAIL || 'harby774411@gmail.com';
+  const from = process.env.RESEND_FROM_EMAIL || 'Wad Store Alerts <onboarding@resend.dev>';
+  if (!apiKey) {
+    console.error('[Wad emergency email] RESEND_API_KEY is not configured; Telegram failure alert was not emailed.', { orderId: input.orderId, failure: input.failure });
+    return { status: 'not_configured' } as const;
+  }
+  const subject = `🚨 تنبيه طارئ: تعطل إشعار تليجرام - طلب جديد رقم ${input.orderId}`;
+  const text = [
+    'تعذر إرسال إشعار الطلب إلى Telegram.',
+    `سبب الفشل: ${input.failure}`,
+    '',
+    `رقم الطلب: ${input.orderId}`,
+    `اسم العميل: ${input.customerName}`,
+    `رقم الهاتف: ${input.customerPhone}`,
+    `المدينة: ${input.city}`,
+    `العنوان: ${input.address}`,
+    `المنتجات: ${input.products}`,
+    `الإجمالي: ${input.total.toLocaleString()} ر.ي`,
+    '',
+    'الطلب محفوظ في Supabase، لكن Telegram لم يستقبل الإشعار.'
+  ].join('\n');
+  try {
+    const response = await fetchWithTimeout('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to: [to], subject, text })
+    }, 2000);
+    const responseText = await response.text();
+    console.log('[Wad emergency email] response:', { status: response.status, ok: response.ok, orderId: input.orderId });
+    if (!response.ok) console.error('[Wad emergency email] provider error:', responseText.slice(0, 500));
+    return { status: response.ok ? 'sent' : `http_${response.status}` } as const;
+  } catch (error: any) {
+    console.error('[Wad emergency email] failed:', { orderId: input.orderId, error: error?.message || error });
+    return { status: 'failed' } as const;
+  }
+}
+
 async function sendWhatsAppOrderNotification(input: {
   orderId: string;
   customerName: string;
@@ -129,6 +177,9 @@ export default async function handler(req: any, res: any) {
       const makeItems = Array.isArray(payload.items)
         ? payload.items.map((item: any) => `${item.product_name || item.name || item.product_id || 'منتج'} × ${item.quantity || 1}`).join('، ')
         : String(payload.products || '');
+      const notificationProducts = Array.isArray(payload.items)
+        ? payload.items.map((item: any) => `${item.product_name || item.name || item.product_id || 'منتج'} × ${item.quantity || 1} — ${Number(item.unit_price || item.price || 0).toLocaleString()} ر.ي`).join('، ')
+        : String(payload.products || '');
       const makePayload = {
         ...payload,
         idempotency_key: idempotencyKey,
@@ -147,13 +198,21 @@ export default async function handler(req: any, res: any) {
         order: { ...order, order_id: saved?.order_id || idempotencyKey }
       };
       console.log('[Wad Telegram webhook] outgoing payload:', JSON.stringify(makePayload));
-      const makeResponse = await fetchWithTimeout(makeWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Order-Event': 'order.created', 'X-Idempotency-Key': idempotencyKey },
-        body: JSON.stringify(makePayload)
-      });
-      makeStatus = makeResponse.ok ? 'forwarded_to_make' : `make_http_${makeResponse.status}`;
-      console.log('[Wad Telegram webhook] response:', { status: makeResponse.status, ok: makeResponse.ok, orderId: idempotencyKey });
+      const emergencyInput = { orderId: idempotencyKey, customerName: String(customer.name || payload.customer_name || '').trim(), customerPhone, city: String(customer.city || payload.city || 'صنعاء'), address: String(customer.address || payload.customer_address || '').trim(), products: notificationProducts, total: Number(payload.totals?.total ?? payload.total ?? 0) };
+      try {
+        const makeResponse = await fetchWithTimeout(makeWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Order-Event': 'order.created', 'X-Idempotency-Key': idempotencyKey },
+          body: JSON.stringify(makePayload)
+        });
+        makeStatus = makeResponse.ok ? 'forwarded_to_make' : `make_http_${makeResponse.status}`;
+        console.log('[Wad Telegram webhook] response:', { status: makeResponse.status, ok: makeResponse.ok, orderId: idempotencyKey });
+        if (!makeResponse.ok) await sendEmergencyEmail({ ...emergencyInput, failure: `Make HTTP ${makeResponse.status}` });
+      } catch (makeError: any) {
+        makeStatus = 'make_timeout_or_network_error';
+        console.error('[Wad Telegram webhook] request failed:', { orderId: idempotencyKey, error: makeError?.message || makeError });
+        await sendEmergencyEmail({ ...emergencyInput, failure: makeError?.name === 'AbortError' ? 'Make timeout after 2 seconds' : (makeError?.message || 'Make network error') });
+      }
     }
 
     if (saved?.status !== 'already_processed') {

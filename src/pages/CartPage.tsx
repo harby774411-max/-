@@ -43,7 +43,7 @@ export const CartPage = () => {
     customerName: string;
     address: string;
     city: string;
-    items: { name: string; quantity: number }[];
+    items: { name: string; quantity: number; price: number }[];
     isOutsideSanaa: boolean;
   } | null>(null);
 
@@ -181,7 +181,7 @@ export const CartPage = () => {
         customerName: formData.fullName.trim(),
         address: `${cityName} - ${formData.address.trim()}`,
         city: cityName,
-        items: items.map(i => ({ name: i.nameAr, quantity: i.quantity })),
+        items: items.map(i => ({ name: i.nameAr, quantity: i.quantity, price: i.price })),
         isOutsideSanaa
       });
 
@@ -289,13 +289,18 @@ export const CartPage = () => {
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <a
                 href={`https://wa.me/967781272125?text=${encodeURIComponent([
-                  'مرحباً وِد، لقد قمت بإتمام طلب جديد عبر المتجر!',
-                  `رقم الطلب: ${completedOrder.orderId}`,
-                  `الاسم: ${completedOrder.customerName}`,
-                  `الهاتف: ${completedOrder.phone}`,
-                  `العنوان: ${completedOrder.address}`,
-                  `المنتجات: ${completedOrder.items.map(item => `${item.name} × ${item.quantity}`).join('، ')}`,
-                  `الإجمالي: ${completedOrder.total.toLocaleString()} ر.ي`
+                  'السلام عليكم متجر وِد ✨',
+                  'لقد قمت بإتمام طلب جديد عبر المتجر:',
+                  '',
+                  `📦 *رقم الطلب:* ${completedOrder.orderId}`,
+                  `👤 *الاسم:* ${completedOrder.customerName}`,
+                  `📱 *رقم الهاتف:* ${completedOrder.phone}`,
+                  `📍 *المدينة والعنوان:* ${completedOrder.city} - ${completedOrder.address}`,
+                  '',
+                  '🛍️ *المنتجات المطلوبة:*',
+                  completedOrder.items.map(item => `• ${item.name} × ${item.quantity} — ${(item.price * item.quantity).toLocaleString()} ر.ي`).join('\n'),
+                  '',
+                  `💰 *المبلغ الإجمالي:* ${completedOrder.total.toLocaleString()} ر.ي`
                 ].join('\n'))}`}
                 target="_blank" rel="noreferrer"
                 className="flex-1 bg-[#25D366] text-white py-3.5 rounded-2xl text-xs sm:text-sm font-bold arabic-text hover:bg-[#1ebe5d] transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
