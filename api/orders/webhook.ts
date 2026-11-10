@@ -160,12 +160,19 @@ export default async function handler(req: any, res: any) {
 
   try {
     const supabase = createClient(supabaseUrl, supabaseKey, { auth: { autoRefreshToken: false, persistSession: false } });
-    const { data: saved, error: saveError } = await supabase.rpc('submit_wad_order', { p_payload: {
+    let saved: any = { order_id: idempotencyKey, status: 'already_processed' };
+    const { data: rpcSaved, error: saveError } = await supabase.rpc('submit_wad_order', { p_payload: {
       ...payload,
       idempotency_key: idempotencyKey,
       customer: { ...customer, phone: customerPhone }
     }});
-    if (saveError) throw saveError;
+    if (saveError) {
+      const duplicateOrder = /duplicate key|orders_pkey|order_number_key/i.test(String(saveError.message || saveError.details || ''));
+      if (!duplicateOrder) throw saveError;
+      console.warn('[Wad order webhook] order already saved; continuing notification delivery:', { orderId: idempotencyKey });
+    } else if (rpcSaved) {
+      saved = rpcSaved;
+    }
 
     let makeStatus = 'not_configured';
     let whatsappStatus = 'not_configured';

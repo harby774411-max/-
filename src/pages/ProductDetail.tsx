@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { findProduct, PRODUCTS } from '../data';
 import { useCart } from '../context/CartContext';
-import { ShoppingCart, Star, ArrowRight, ShieldCheck, Truck, RefreshCcw, Loader2, Sparkles, Check, Heart, Share2, Copy } from 'lucide-react';
+import { ShoppingCart, Star, ArrowRight, ShieldCheck, Truck, RefreshCcw, Loader2, Sparkles, Check, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { NotFoundPage } from './PolicyPages';
@@ -18,7 +18,6 @@ export const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     const fetchProd = async () => {
@@ -113,31 +112,6 @@ export const ProductDetail = () => {
     setTimeout(() => setAdded(false), 2000);
   };
 
-  const handleShareProduct = async () => {
-    if (!product) return;
-    const shareUrl = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: product.nameAr,
-          text: `شاهدي مستحضر «${product.nameAr}» في متجر وِد للعناية بالبشرة 🌸`,
-          url: shareUrl,
-        });
-        return;
-      } catch (err) {
-        // Fallback to clipboard
-      }
-    }
-    
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2500);
-    } catch (err) {
-      // Fallback
-    }
-  };
-
   if (loading) {
     return (
       <div className="pt-36 pb-20 flex items-center justify-center min-h-[60vh] bg-brand-cream">
@@ -149,6 +123,11 @@ export const ProductDetail = () => {
   if (!product) {
     return <NotFoundPage />;
   }
+
+  const ingredientsText = String(product.ingredientsAr || product.ingredients || '').trim();
+  const ingredientList = ingredientsText
+    ? ingredientsText.split(/[،,؛]/).map((item: string) => item.trim()).filter(Boolean)
+    : [];
 
   const galleryImages = (product.gallery && product.gallery.length > 0) 
     ? product.gallery 
@@ -305,30 +284,6 @@ export const ProductDetail = () => {
                 </button>
               </div>
 
-              {/* Share Product Button */}
-              <button
-                type="button"
-                onClick={handleShareProduct}
-                className={cn(
-                  "w-full py-3 rounded-2xl text-xs sm:text-sm font-bold arabic-text transition-all border flex items-center justify-center gap-2 cursor-pointer shadow-2xs",
-                  copiedLink
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-200"
-                    : "bg-white text-brand-text border-brand-border hover:bg-brand-cream hover:border-brand-blue/60"
-                )}
-                title="مشاركة رابط هذا المستحضر مباشرة"
-              >
-                {copiedLink ? (
-                  <>
-                    <Check className="w-4 h-4 text-emerald-600" />
-                    <span>تم نسخ رابط المستحضر بنجاح! جاهز للإرسال 🔗</span>
-                  </>
-                ) : (
-                  <>
-                    <Share2 className="w-4 h-4 text-brand-blue" />
-                    <span>مشاركة رابط المستحضر (نسخ الرابط المباشر)</span>
-                  </>
-                )}
-              </button>
             </div>
 
             {/* Guarantees */}
@@ -414,17 +369,24 @@ export const ProductDetail = () => {
             )}
             {activeTab === 'ingredients' && (
               <div className="space-y-4 max-w-3xl">
-                <h4 className="arabic-text font-black text-base text-brand-text">المكونات الفعالة والنقاء:</h4>
-                <p className="arabic-text text-xs sm:text-sm text-brand-text bg-brand-cream/40 p-4 rounded-2xl border border-brand-border">
-                  {product.ingredients || product.ingredientsAr || "تركيبة نقية مختبرة جلدياً بخلاصات نباتية وفيتامينات مغذية."}
+                <h4 className="arabic-text font-black text-base text-brand-text">المكونات المسجلة للمنتج:</h4>
+                {ingredientList.length ? (
+                  <ul className="grid sm:grid-cols-2 gap-2" aria-label="قائمة مكونات المنتج">
+                    {ingredientList.map((ingredient: string, index: number) => (
+                      <li key={`${ingredient}-${index}`} className="arabic-text text-xs sm:text-sm text-brand-text bg-brand-cream/40 p-3 rounded-xl border border-brand-border">
+                        {ingredient}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="arabic-text text-xs sm:text-sm text-brand-muted bg-brand-cream/40 p-4 rounded-2xl border border-brand-border">
+                    لم تُسجّل قائمة المكونات الكاملة لهذا المنتج بعد. يُرجى الرجوع إلى ملصق العبوة عند وجود حساسية.
+                  </p>
+                )}
+                {product.ingredientsEn && <p className="text-xs text-brand-muted border-t border-brand-border pt-3" dir="ltr">{product.ingredientsEn}</p>}
+                <p className="arabic-text text-[11px] text-amber-800 bg-amber-50 rounded-xl border border-amber-200 p-3">
+                  إذا كانت لديك حساسية من مكوّن معين، راجعي القائمة الكاملة المطبوعة على العبوة واستشيري مختصاً قبل الاستخدام.
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                  {['مكونات نقية 100%', 'خالٍ من البارابين', 'خالٍ من الكحول المضر', 'آمن للبشرة الحساسة'].map(tag => (
-                    <div key={tag} className="bg-brand-cream p-2.5 rounded-xl text-center font-bold text-[11px] text-brand-text border border-brand-border">
-                      {tag}
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
             {activeTab === 'usage' && (

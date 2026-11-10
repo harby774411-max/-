@@ -84,15 +84,20 @@ export const CartPage = () => {
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = couponCode.trim().toUpperCase();
-    const { data } = await supabase.from('coupons').select('code, discount_percent, discount_type, discount_value, is_active').eq('code', code).eq('is_active', true).maybeSingle();
+    const { data: rawCoupon, error: couponError } = await supabase.rpc('validate_coupon', { p_code: code, p_order_amount: totalPrice }).maybeSingle();
+    const data = rawCoupon as any;
+    if (couponError) console.warn('Coupon validation notice:', couponError);
+    const expired = Boolean(data?.expires_at && new Date(data.expires_at).getTime() <= Date.now());
+    const belowMinimum = Boolean(data && Number(data.min_order_amount || 0) > totalPrice);
+    const validDatabaseCoupon = Boolean(data && !expired && !belowMinimum);
     const type = data?.discount_type === 'fixed' ? 'fixed' : 'percent';
-    const value = data ? Number(data.discount_value || data.discount_percent) : (code === 'WED10' || code === 'WED' || code === 'WEDVIP' ? 10 : 0);
+    const value = validDatabaseCoupon ? Number(data.discount_value || data.discount_percent) : 0;
     const percent = type === 'percent' ? value : 0;
     if (value > 0) {
       setDiscountType(type); setDiscountValue(value); setDiscountPercent(percent);
       setCouponMsg({ text: type === 'fixed' ? `تم تطبيق خصم ثابت بقيمة ${value.toLocaleString()} ر.ي بنجاح 🌸` : `تم تطبيق كود الخصم (${percent}%) بنجاح 🌸`, type: 'success' });
     } else {
-      setCouponMsg({ text: 'كود الخصم غير صالح أو منتهي الصلاحية.', type: 'error' });
+      setCouponMsg({ text: expired ? 'انتهت صلاحية هذا الكود.' : belowMinimum ? `يُطبّق هذا الكود عند وصول قيمة المنتجات إلى ${Number(data?.min_order_amount || 0).toLocaleString()} ر.ي.` : 'كود الخصم غير صالح أو غير مفعّل.', type: 'error' });
       setDiscountPercent(0); setDiscountValue(0); setDiscountType('percent');
     }
   };
