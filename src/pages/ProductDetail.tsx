@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { findProduct, PRODUCTS } from '../data';
 import { useCart } from '../context/CartContext';
-import { ShoppingCart, Star, ArrowRight, ShieldCheck, Truck, RefreshCcw, Loader2, Sparkles, Check, Heart } from 'lucide-react';
+import { ShoppingCart, ArrowRight, ShieldCheck, Truck, RefreshCcw, Loader2, Sparkles, Check, Heart, Share2, Copy } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { NotFoundPage } from './PolicyPages';
@@ -13,11 +13,12 @@ export const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'info' | 'ingredients' | 'usage' | 'reviews'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'ingredients' | 'usage'>('info');
   const [product, setProduct] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
+  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     const fetchProd = async () => {
@@ -112,6 +113,27 @@ export const ProductDetail = () => {
     setTimeout(() => setAdded(false), 2000);
   };
 
+  const handleShareProduct = async () => {
+    if (!product) return;
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: product.nameAr,
+      text: `شاهدي مستحضر «${product.nameAr}» في متجر وِد للعناية بالبشرة`,
+      url: shareUrl,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+      }
+      setShared(true);
+      window.setTimeout(() => setShared(false), 2200);
+    } catch {
+      // The customer may close the native share sheet; no error message is needed.
+    }
+  };
+
   if (loading) {
     return (
       <div className="pt-36 pb-20 flex items-center justify-center min-h-[60vh] bg-brand-cream">
@@ -124,9 +146,9 @@ export const ProductDetail = () => {
     return <NotFoundPage />;
   }
 
-  const ingredientsText = String(product.ingredientsAr || product.ingredients || '').trim();
+  const ingredientsText = String(product.ingredientsEn || product.ingredientsAr || product.ingredients || '').trim();
   const ingredientList = ingredientsText
-    ? ingredientsText.split(/[،,؛]/).map((item: string) => item.trim()).filter(Boolean)
+    ? ingredientsText.split(/[•،,؛]/).map((item: string) => item.trim()).filter(Boolean)
     : [];
 
   const galleryImages = (product.gallery && product.gallery.length > 0) 
@@ -196,15 +218,7 @@ export const ProductDetail = () => {
 
           {/* Details */}
           <div className="lg:col-span-6 space-y-4 text-right">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 text-amber-500">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={15} fill="currentColor" />
-                ))}
-                <span className="text-xs font-bold text-brand-muted mr-1 font-sans">
-                  ({product.reviewsCount || 24} تقييم موثق)
-                </span>
-              </div>
+            <div className="flex items-center justify-end">
               <span className="text-xs font-mono font-bold text-brand-muted bg-white px-2.5 py-1 rounded-lg border border-brand-border">
                 {product.sku || product.productId || product.id}
               </span>
@@ -284,6 +298,17 @@ export const ProductDetail = () => {
                 </button>
               </div>
 
+              <button
+                type="button"
+                onClick={handleShareProduct}
+                className="w-full py-3 rounded-2xl border border-brand-blue/30 bg-white text-brand-blue text-xs sm:text-sm font-bold arabic-text transition-all hover:bg-brand-blue/5 flex items-center justify-center gap-2 cursor-pointer"
+                aria-label="مشاركة المنتج"
+              >
+                {shared ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
+                <span>{shared ? 'تم نسخ رابط المنتج' : 'مشاركة المنتج'}</span>
+                {!navigator.share && !shared && <Copy className="w-3.5 h-3.5 opacity-70" />}
+              </button>
+
             </div>
 
             {/* Guarantees */}
@@ -337,16 +362,6 @@ export const ProductDetail = () => {
               طريقة الاستخدام
               {activeTab === 'usage' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-blue rounded-full" />}
             </button>
-            <button 
-              onClick={() => setActiveTab('reviews')}
-              className={cn(
-                "pb-2.5 px-4 arabic-text text-xs sm:text-sm font-bold transition-all relative block whitespace-nowrap cursor-pointer",
-                activeTab === 'reviews' ? "text-brand-blue" : "text-brand-muted hover:text-brand-text"
-              )}
-            >
-              تجارب العميلات ({product.reviewsCount || 24})
-              {activeTab === 'reviews' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-blue rounded-full" />}
-            </button>
           </div>
 
           <div className="p-6 sm:p-8 bg-white rounded-3xl border border-brand-border shadow-xs text-right leading-relaxed text-brand-text">
@@ -369,11 +384,11 @@ export const ProductDetail = () => {
             )}
             {activeTab === 'ingredients' && (
               <div className="space-y-4 max-w-3xl">
-                <h4 className="arabic-text font-black text-base text-brand-text">المكونات المسجلة للمنتج:</h4>
+                <h4 className="arabic-text font-black text-base text-brand-text">القائمة الكاملة للمكونات (INCI):</h4>
                 {ingredientList.length ? (
                   <ul className="grid sm:grid-cols-2 gap-2" aria-label="قائمة مكونات المنتج">
                     {ingredientList.map((ingredient: string, index: number) => (
-                      <li key={`${ingredient}-${index}`} className="arabic-text text-xs sm:text-sm text-brand-text bg-brand-cream/40 p-3 rounded-xl border border-brand-border">
+                      <li key={`${ingredient}-${index}`} className="text-xs sm:text-sm text-brand-text bg-brand-cream/40 p-3 rounded-xl border border-brand-border" dir="ltr">
                         {ingredient}
                       </li>
                     ))}
@@ -383,9 +398,8 @@ export const ProductDetail = () => {
                     لم تُسجّل قائمة المكونات الكاملة لهذا المنتج بعد. يُرجى الرجوع إلى ملصق العبوة عند وجود حساسية.
                   </p>
                 )}
-                {product.ingredientsEn && <p className="text-xs text-brand-muted border-t border-brand-border pt-3" dir="ltr">{product.ingredientsEn}</p>}
                 <p className="arabic-text text-[11px] text-amber-800 bg-amber-50 rounded-xl border border-amber-200 p-3">
-                  إذا كانت لديك حساسية من مكوّن معين، راجعي القائمة الكاملة المطبوعة على العبوة واستشيري مختصاً قبل الاستخدام.
+                  هذه قائمة المكونات المنشورة للتركيبة التي تم التحقق منها. قد تتغير الصيغة حسب الدفعة أو البلد؛ عند وجود حساسية، قارنيها بملصق العبوة.
                 </p>
               </div>
             )}
@@ -401,26 +415,6 @@ export const ProductDetail = () => {
                     <span><strong>تنبيه:</strong> {product.precautionsAr}</span>
                   </div>
                 )}
-              </div>
-            )}
-            {activeTab === 'reviews' && (
-              <div className="space-y-3 max-w-3xl">
-                 {[
-                   { name: 'منى اليماني (صنعاء)', comment: 'سيروم رائع جداً، لاحظت إشراقة وتوحيد بلون بشرتي خلال أقل من أسبوعين. التوصيل كان سريعاً والتعامل قمة بالذوق.', stars: 5 },
-                   { name: 'هدى باعباد (حضرموت)', comment: 'قوام ممتاز لا يترك أي أثر دهني ومناسب جداً للجو الحار. سعيدة جداً بوجود براند يمني بهذه الفخامة.', stars: 5 }
-                 ].map((rev, i) => (
-                   <div key={i} className="p-4 bg-brand-cream/40 rounded-2xl border border-brand-border space-y-1.5">
-                     <div className="flex items-center justify-between">
-                       <h5 className="arabic-text font-bold text-xs sm:text-sm text-brand-text">{rev.name}</h5>
-                       <div className="flex text-amber-500">
-                         {[...Array(rev.stars)].map((_, j) => <Star key={j} size={13} fill="currentColor" />)}
-                       </div>
-                     </div>
-                     <p className="arabic-text text-xs text-brand-muted leading-relaxed">
-                       {rev.comment}
-                     </p>
-                   </div>
-                 ))}
               </div>
             )}
           </div>
