@@ -168,8 +168,51 @@ export default async function handler(req: any, res: any) {
     }});
     if (saveError) {
       const duplicateOrder = /duplicate key|orders_pkey|order_number_key/i.test(String(saveError.message || saveError.details || ''));
-      if (!duplicateOrder) throw saveError;
-      console.warn('[Wad order webhook] order already saved; continuing notification delivery:', { orderId: idempotencyKey });
+      if (!duplicateOrder) {
+        console.error('[Wad order webhook] RPC save failed; trying direct database fallback:', {
+          orderId: idempotencyKey,
+          message: saveError.message,
+          details: saveError.details,
+          hint: saveError.hint,
+          code: saveError.code
+        });
+        let fallbackCustomerId: string | null = null;
+        const { data: fallbackCustomer, error: fallbackCustomerError } = await supabase
+          .from('customers')
+          .upsert({
+            phone: customerPhone,
+            name: String(customer.name || payload.customer_name || '').trim(),
+            city: String(customer.city || payload.city || 'صنعاء'),
+            address: String(customer.address || payload.address || ''),
+            notes: String(payload.notes || '')
+          }, { onConflict: 'phone' })
+          .select('id')
+          .single();
+        if (!fallbackCustomerError && fallbackCustomer) fallbackCustomerId = fallbackCustomer.id;
+        const { error: fallbackOrderError } = await supabase.from('orders').insert({
+          id: idempotencyKey,
+          order_number: idempotencyKey,
+          customer_id: fallbackCustomerId,
+          customer_name: String(customer.name || payload.customer_name || '').trim(),
+          customer_phone: customerPhone,
+          city: String(customer.city || payload.city || 'صنعاء'),
+          address: String(customer.address || payload.address || ''),
+          status: 'pending',
+          items: payload.items,
+          subtotal: Number(payload.totals?.subtotal ?? payload.subtotal ?? 0),
+          discount: Number(payload.discount ?? payload.discount_amount ?? payload.totals?.discount ?? 0),
+          coupon_code: String(payload.coupon_code || '').trim() || null,
+          shipping: Number(payload.totals?.shipping ?? payload.shipping ?? payload.delivery_fee ?? 0),
+          total: Number(payload.totals?.total ?? payload.total ?? 0),
+          notes: String(payload.notes || '')
+        });
+        if (fallbackOrderError && !/duplicate key|orders_pkey|order_number_key/i.test(String(fallbackOrderError.message || ''))) {
+          throw fallbackOrderError;
+        }
+        saved = { order_id: idempotencyKey, status: fallbackOrderError ? 'already_processed' : 'saved_with_fallback' };
+      } else {
+        console.warn('[Wad order webhook] order already saved; continuing notification delivery:', { orderId: idempotencyKey });
+      }
     } else if (rpcSaved) {
       saved = rpcSaved;
     }
