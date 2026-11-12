@@ -209,7 +209,8 @@ export default async function handler(req: any, res: any) {
       try {
         const makeResponse = await fetchWithTimeout(makeWebhookUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Order-Event': 'order.created', 'X-Idempotency-Key': idempotencyKey },
+          // HTTP header values must be ASCII. Keep the original Arabic order number in the JSON payload.
+          headers: { 'Content-Type': 'application/json', 'X-Order-Event': 'order.created', 'X-Idempotency-Key': encodeURIComponent(idempotencyKey).slice(0, 200) },
           body: JSON.stringify(makePayload)
         });
         makeStatus = makeResponse.ok ? 'forwarded_to_make' : `make_http_${makeResponse.status}`;
