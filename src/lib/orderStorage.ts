@@ -190,89 +190,84 @@ export async function createAndPersistOrder(payload: {
     console.error('LocalStorage order save error:', e);
   }
 
-  // 2–3. Persist remotely and notify Telegram/Make in the background.
-  // The customer must never wait for Supabase, Make, or Telegram to finish.
-  void (async () => {
-    let supabaseOrderSaved = false;
-    try {
-      let customerId = null;
-      try {
-        const { data: customerData, error: customerError } = await Promise.race([
-          supabase.from('customers').upsert({
-            phone: payload.phone,
-            name: payload.customer_name,
-            city: payload.city || 'صنعاء',
-            address: payload.address,
-            notes: payload.notes || ''
-          }, { onConflict: 'phone' }).select('id').single(),
-          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('customer save timeout')), 1800))
-        ]);
-        if (!customerError && customerData) customerId = customerData.id;
-      } catch (customerError) {
-        console.warn('Background customer save notice:', customerError);
-      }
+  // 2. Send the order to the server and wait for a durable ACK.
+  // Do not fire-and-forget here: navigating to WhatsApp or closing the page
+  // can cancel a browser background request before it reaches Vercel.
+  const intlPhone = (() => {
+    const digits = payload.phone.replace(/\D/g, '');
+    if (digits.startsWith('967')) return `+${digits}`;
+    if (digits.startsWith('7') && digits.length === 9) return `+967${digits}`;
+    return digits ? `+${digits}` : '';
+  })();
+  const productsText = payload.items
+    .map(item => `${item.name || ''} × ${item.quantity || 1} — ${((item.price || 0) * (item.quantity || 1)).toLocaleString()} ر.ي`)
+    .join('\n');
+  const couponText = payload.coupon_code
+    ? `${payload.coupon_code} (-${(payload.discount || 0).toLocaleString()} ر.ي)`
+    : 'لا يوجد';
+  const telegramMessage = [
+    'طلب جديد من متجر وِد',
+    `رقم الطلب: ${sequentialId}`,
+    `اسم العميل: ${payload.customer_name}`,
+    `رقم الهاتف: ${intlPhone}`,
+    `المدينة: ${payload.city || 'صنعاء'}`,
+    `العنوان: ${payload.address}`,
+    'المنتجات:',
+    productsText,
+    `كود الخصم: ${couponText}`,
+    `الإجمالي: ${(payload.total || 0).toLocaleString()} ر.ي`
+  ].join('\n');
+  const webhookPayload = {
+    event: 'order.created',
+    order: { order_id: sequentialId, order_number: sequentialId, status: 'new', created_at: newOrder.created_at },
+    customer: { name: payload.customer_name, phone: intlPhone, city: payload.city || 'صنعاء', address: payload.address },
+    items: payload.items.map(item => ({
+      product_id: item.id || '',
+      product_name: item.name || '',
+      quantity: item.quantity || 1,
+      unit_price: item.price || 0,
+      subtotal: (item.price || 0) * (item.quantity || 1)
+    })),
+    totals: { subtotal: payload.subtotal || 0, shipping: payload.delivery_fee || 0, total: payload.total || 0 },
+    notes: payload.notes || '',
+    idempotency_key: sequentialId,
+    customer_name: payload.customer_name,
+    customer_phone: intlPhone,
+    city: payload.city || 'صنعاء',
+    address: payload.address,
+    products_text: productsText,
+    coupon_code: payload.coupon_code || '',
+    discount: payload.discount || 0,
+    total: payload.total || 0,
+    telegram_message: telegramMessage
+  };
 
-      const { error: orderInsertError } = await Promise.race([
-        supabase.from('orders').insert({
-          id: sequentialId,
-          order_number: sequentialId,
-          customer_id: customerId,
-          customer_name: payload.customer_name,
-          customer_phone: payload.phone,
-          city: payload.city || 'صنعاء',
-          address: payload.address,
-          status: 'pending',
-          items: payload.items,
-          subtotal: payload.subtotal || 0,
-          discount: payload.discount || 0,
-          coupon_code: payload.coupon_code || null,
-          shipping: payload.delivery_fee || 0,
-          total: payload.total,
-          notes: payload.notes || ''
-        }),
-        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('order save timeout')), 1800))
-      ]);
-      supabaseOrderSaved = !orderInsertError;
-    } catch (err) {
-      console.warn('Background Supabase order save notice:', err);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch('/api/orders/webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify(webhookPayload),
+      signal: controller.signal
+    });
+    const responseText = await response.text();
+    let result: any = {};
+    try { result = responseText ? JSON.parse(responseText) : {}; } catch { /* handled below */ }
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Order server returned HTTP ${response.status}`);
     }
-
-    // Always notify the server-side route. It owns the production RPC/Make delivery.
-    try {
-      const intlPhone = (() => {
-        const digits = payload.phone.replace(/\D/g, '');
-        if (digits.startsWith('967')) return `+${digits}`;
-        if (digits.startsWith('7') && digits.length === 9) return `+967${digits}`;
-        return digits ? `+${digits}` : '';
-      })();
-      const productsText = payload.items.map(item => `${item.name || ''} × ${item.quantity || 1} — ${((item.price || 0) * (item.quantity || 1)).toLocaleString()} ر.ي`).join('\n');
-      const couponText = payload.coupon_code ? `${payload.coupon_code} (-${(payload.discount || 0).toLocaleString()} ر.ي)` : 'لا يوجد';
-      const telegramMessage = [
-        'طلب جديد من متجر وِد', `رقم الطلب: ${sequentialId}`,
-        `اسم العميل: ${payload.customer_name}`, `رقم الهاتف: ${intlPhone}`,
-        `المدينة: ${payload.city || 'صنعاء'}`, `العنوان: ${payload.address}`,
-        'المنتجات:', productsText, `كود الخصم: ${couponText}`,
-        `الإجمالي: ${(payload.total || 0).toLocaleString()} ر.ي`
-      ].join('\n');
-      const webhookPayload = {
-        event: 'order.created',
-        order: { order_id: sequentialId, order_number: sequentialId, status: 'new', created_at: newOrder.created_at },
-        customer: { name: payload.customer_name, phone: intlPhone, city: payload.city || 'صنعاء', address: payload.address },
-        items: payload.items.map(item => ({ product_id: item.id || '', product_name: item.name || '', quantity: item.quantity || 1, unit_price: item.price || 0, subtotal: (item.price || 0) * (item.quantity || 1) })),
-        totals: { subtotal: payload.subtotal || 0, shipping: payload.delivery_fee || 0, total: payload.total || 0 },
-        notes: payload.notes || '', idempotency_key: sequentialId,
-        customer_name: payload.customer_name, customer_phone: intlPhone, city: payload.city || 'صنعاء', address: payload.address,
-        products_text: productsText, coupon_code: payload.coupon_code || '', discount: payload.discount || 0, total: payload.total || 0,
-        telegram_message: telegramMessage
-      };
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 2000);
-      await fetch('/api/orders/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify(webhookPayload), signal: controller.signal }).catch(err => console.warn('Background Telegram webhook notice:', err));
-      clearTimeout(timer);
-    } catch (err) {
-      console.warn('Background notification preparation notice:', err);
-    }
-  })().catch(err => console.warn('Background order task notice:', err));
+    // Keep the local copy marked as server-confirmed for offline/admin review.
+    const confirmed = getLocalOrders().map(order => order.id === sequentialId ? { ...order, status: 'server_confirmed' } : order);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(confirmed));
+    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(confirmed));
+  } catch (error) {
+    console.error('Order server confirmation failed:', error);
+    throw new Error('تعذر تأكيد الطلب مع الخادم. الطلب محفوظ محلياً، يرجى إعادة المحاولة قبل إغلاق الصفحة.');
+  } finally {
+    clearTimeout(timeout);
+  }
   // 4. Dispatch events to notify Admin Dashboard & Navbar
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('order_created', { detail: newOrder }));

@@ -146,7 +146,7 @@ export const CartPage = () => {
         ? (customGovName.trim() || 'محافظة أخرى')
         : (govObj ? govObj.nameAr : selectedGov);
 
-      // Remote customer/order persistence is handled in the background by createAndPersistOrder.
+      // createAndPersistOrder waits for the server ACK before showing success.
       const shippingLabel = isSanaaCity
         ? (deliveryType === 'express' ? 'توصيل مستعجل خلال 12 ساعة (صنعاء)' : 'توصيل قياسي مجاني (صنعاء)')
         : (isSanaaRural ? 'توصيل ضواحي صنعاء (24-48 ساعة)' : `شحن المحافظات (${cityName}) - تكلفة الشحن منفصلة`);
