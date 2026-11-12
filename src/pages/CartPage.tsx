@@ -85,7 +85,8 @@ export const CartPage = () => {
     e.preventDefault();
     const code = couponCode.trim().toUpperCase();
     const { data: rawCoupon, error: couponError } = await supabase.rpc('validate_coupon', { p_code: code, p_order_amount: totalPrice }).maybeSingle();
-    const data = rawCoupon as any;
+    // Depending on the Supabase client version, a table-returning RPC may be an object or a one-row array.
+    const data = (Array.isArray(rawCoupon) ? rawCoupon[0] : rawCoupon) as any;
     if (couponError) console.warn('Coupon validation notice:', couponError);
     const expired = Boolean(data?.expires_at && new Date(data.expires_at).getTime() <= Date.now());
     const belowMinimum = Boolean(data && Number(data.min_order_amount || 0) > totalPrice);
