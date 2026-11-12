@@ -72,11 +72,11 @@ export const CartPage = () => {
   // Shipping Fee Calculation:
   // - Sanaa City standard: 0 (Free)
   // - Sanaa City express: 1500
-  // - Sanaa Rural (ضواحي صنعاء): 1500
+  // - Sanaa Rural (ضواحي صنعاء): 0 (Free)
   // - Outside Sanaa: Products total only (Shipping is separate and handled directly via management contact)
   const shippingFee = isSanaaCity 
     ? (deliveryType === 'express' ? 1500 : 0)
-    : (isSanaaRural ? 1500 : 0);
+    : 0;
 
   const discountAmount = discountType === 'fixed' ? Math.min(totalPrice, Math.round(discountValue)) : Math.round((totalPrice * discountPercent) / 100);
   const finalTotal = Math.max(0, totalPrice - discountAmount + shippingFee);
@@ -284,7 +284,7 @@ export const CartPage = () => {
                     <span>ملاحظة الشحن لموقعكِ ({completedOrder.city}):</span>
                   </div>
                   <p className="text-[11px] leading-relaxed text-amber-800">
-                    هذه التكلفة خاصة بالمنتجات فقط، وتكلفة التوصيل والشحن منفصلة حيث أن التوصيل المجاني حصري لأمانة العاصمة صنعاء. سيتم التواصل معكِ هاتفياً أو عبر الواتساب من قبل الإدارة لتنسيق تفاصيل الشحن والفرع المناسب لكِ.
+                    هذه التكلفة خاصة بالمنتجات فقط، وتكلفة التوصيل والشحن منفصلة للمحافظات خارج صنعاء وضواحيها. التوصيل داخل صنعاء وضواحيها مجاني، وسيتم التواصل معكِ هاتفياً أو عبر الواتساب لتنسيق الشحن للمحافظات الأخرى.
                   </p>
                 </div>
               )}
@@ -510,7 +510,7 @@ export const CartPage = () => {
                               <span className="font-bold text-brand-text block">توصيل ضواحي صنعاء (24 - 48 ساعة)</span>
                               <span className="text-[10px] text-brand-muted">متضمن ضواحي العاصمة المباشرة</span>
                             </div>
-                            <span className="font-sans font-bold text-brand-text">1,500 ر.ي</span>
+                            <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">مجاناً 🎁</span>
                           </div>
                         ) : (
                           <div className="p-3.5 bg-blue-50/70 rounded-2xl border border-blue-200 text-xs space-y-2">
@@ -525,7 +525,7 @@ export const CartPage = () => {
                                 📢 تنبيه هام بخصوص تكلفة الشحن:
                               </p>
                               <p className="text-gray-700">
-                                التوصيل المجاني متاح <strong className="text-brand-burgundy">فقط لسكان أمانة العاصمة صنعاء</strong>. تكاليف الشحن والتوصيل للمحافظات خارج صنعاء هي <strong>مبلغ منفصل</strong> عن إجمالي قيمة طلباتكِ، وسيتم التواصل معكِ هاتفياً من قبل الإدارة فور تأكيد الطلب لتحديد تفاصيل الشحن وسعر شركة النقل المناسبة لمدينتكِ.
+                                التوصيل المجاني متاح <strong className="text-brand-burgundy">داخل صنعاء وضواحيها</strong>. تكاليف الشحن والتوصيل للمحافظات خارج صنعاء هي <strong>مبلغ منفصل</strong> عن إجمالي قيمة طلباتكِ، وسيتم التواصل معكِ هاتفياً من قبل الإدارة فور تأكيد الطلب لتحديد تفاصيل الشحن وسعر شركة النقل المناسبة لمدينتكِ.
                               </p>
                             </div>
                           </div>
@@ -684,9 +684,9 @@ export const CartPage = () => {
                       <span className="font-sans font-bold text-brand-text">{totalPrice.toLocaleString()} ر.ي</span>
                     </div>
 
-                    {discountPercent > 0 && (
+                    {discountAmount > 0 && (
                       <div className="flex justify-between text-emerald-700 font-bold">
-                        <span>الخصم ({discountType === 'fixed' ? 'مبلغ ثابت' : `${discountPercent}%`}):</span>
+                        <span>الخصم {couponCode.trim() ? `(${couponCode.trim().toUpperCase()})` : ''} ({discountType === 'fixed' ? 'مبلغ ثابت' : `${discountPercent}%`}):</span>
                         <span className="font-sans">-{discountAmount.toLocaleString()} ر.ي</span>
                       </div>
                     )}
@@ -697,7 +697,7 @@ export const CartPage = () => {
                         {isSanaaCity 
                           ? (deliveryType === 'express' ? '1,500 ر.ي (توصيل مستعجل)' : 'مجاني داخل صنعاء') 
                           : isSanaaRural 
-                          ? '1,500 ر.ي (ضواحي صنعاء)' 
+                          ? 'مجاني داخل ضواحي صنعاء'
                           : 'منفصلة (يتم التنسيق هاتفياً)'}
                       </span>
                     </div>

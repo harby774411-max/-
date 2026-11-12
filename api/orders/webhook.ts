@@ -197,6 +197,11 @@ export default async function handler(req: any, res: any) {
         customer_email: String(customer.email || payload.customer_email || '').trim(),
         customer_address: String(customer.address || payload.customer_address || '').trim(),
         products: makeItems,
+        products_text: notificationProducts,
+        coupon_code: String(payload.coupon_code || '').trim(),
+        discount: Number(payload.discount ?? payload.discount_amount ?? payload.totals?.discount ?? 0),
+        discount_amount: Number(payload.discount ?? payload.discount_amount ?? payload.totals?.discount ?? 0),
+        shipping: Number(payload.delivery_fee ?? payload.shipping ?? payload.totals?.shipping ?? 0),
         total: Number(payload.totals?.total ?? payload.total ?? 0),
         payment_method: String(payload.payment_method || ''),
         customer_message: String(payload.customer_message || ''),
@@ -204,6 +209,24 @@ export default async function handler(req: any, res: any) {
         customer: { ...customer, phone: customerPhone },
         order: { ...order, order_id: saved?.order_id || idempotencyKey }
       };
+      const couponCode = String(makePayload.coupon_code || '').trim();
+      const discountAmount = Number(makePayload.discount_amount || 0);
+      const shippingAmount = Number(makePayload.shipping || 0);
+      const subtotalAmount = Number(payload.totals?.subtotal ?? payload.subtotal ?? 0);
+      makePayload.telegram_message = [
+        'طلب جديد من متجر وِد',
+        `رقم الطلب: ${idempotencyKey}`,
+        `اسم العميل: ${makePayload.customer_name}`,
+        `رقم الهاتف: ${customerPhone}`,
+        `المدينة: ${makePayload.city}`,
+        `العنوان: ${makePayload.customer_address}`,
+        'المنتجات:', notificationProducts,
+        `المبلغ الأساسي: ${subtotalAmount.toLocaleString()} ر.ي`,
+        `كود الخصم: ${couponCode || 'لا يوجد'}`,
+        `قيمة الخصم: ${discountAmount.toLocaleString()} ر.ي`,
+        `الشحن: ${shippingAmount > 0 ? `${shippingAmount.toLocaleString()} ر.ي` : 'مجاني'}`,
+        `الإجمالي النهائي: ${makePayload.total.toLocaleString()} ر.ي`
+      ].join('\n');
       console.log('[Wad Telegram webhook] outgoing payload:', JSON.stringify(makePayload));
       const emergencyInput = { orderId: idempotencyKey, customerName: String(customer.name || payload.customer_name || '').trim(), customerPhone, city: String(customer.city || payload.city || 'صنعاء'), address: String(customer.address || payload.customer_address || '').trim(), products: notificationProducts, total: Number(payload.totals?.total ?? payload.total ?? 0) };
       try {
